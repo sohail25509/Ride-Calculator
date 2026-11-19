@@ -1,0 +1,55 @@
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlayCardRoot"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_overlay_card"
+    android:elevation="8dp"
+    android:minWidth="190dp"
+    android:padding="4dp">
+
+    <TextView
+        android:id="@+id/tvDragHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="DRAG TO MOVE"
+        android:textColor="#D1D5DB"
+        android:textSize="9sp"
+        android:gravity="center"
+        android:paddingBottom="5dp" />
+
+    <TextView
+        android:id="@+id/tvVerdict"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="DATA NOT FOUND"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="5dp" />
+
+    <TextView
+        android:id="@+id/tvRatePerKm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Rate: -- Rs./km"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="4dp" />
+
+    <TextView
+        android:id="@+id/tvDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Fare: --&#10;Pickup: -- | Trip: --"
+        android:textColor="#F3F4F6"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:paddingTop="4dp" />
+
+</LinearLayout>
