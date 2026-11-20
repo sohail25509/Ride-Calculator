@@ -1,6 +1,6 @@
 
 package com.ridecalculator.app.overlay
-
+import android.graphics.Rect
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
@@ -357,4 +357,18 @@ class OverlayController(private val context: Context) {
         val density = appContext.resources.displayMetrics.density
         return (dp * density).roundToInt()
     }
+fun getOverlayScreenBounds(): Rect? {
+    if (!::overlayView.isInitialized || !overlayView.isAttachedToWindow) {
+        return null
+    }
+
+    val location = IntArray(2)
+    overlayView.getLocationOnScreen(location)
+
+    return Rect(
+        location[0],
+        location[1],
+        location[0] + overlayView.width,
+        location[1] + overlayView.height
+    )
 }
