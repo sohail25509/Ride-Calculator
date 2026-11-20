@@ -25,13 +25,16 @@ class OcrTextRecognizer(
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+
     private val recognizer = TextRecognition.getClient(
         TextRecognizerOptions.DEFAULT_OPTIONS
     )
+
     private val isClosed = AtomicBoolean(false)
 
     fun processImage(
         image: Image,
+        closeImageOnce: () -> Unit,
         overlayBounds: Rect? = null,
         onFinished: () -> Unit
     ) {
@@ -54,7 +57,7 @@ class OcrTextRecognizer(
         fun closeImageSafely() {
             if (imageClosed.compareAndSet(false, true)) {
                 try {
-                    image.close()
+                    closeImageOnce()
                 } catch (e: Exception) {
                     Log.e(TAG, "Image close failed", e)
                 }
@@ -63,7 +66,9 @@ class OcrTextRecognizer(
 
         fun recycleBitmapSafely() {
             val current = bitmap
-            if (current != null && bitmapRecycled.compareAndSet(false, true)) {
+            if (current != null &&
+                bitmapRecycled.compareAndSet(false, true)
+            ) {
                 try {
                     if (!current.isRecycled) {
                         current.recycle()
@@ -94,6 +99,10 @@ class OcrTextRecognizer(
                 "Invalid image dimensions"
             }
 
+            require(pixelStride > 0) {
+                "Invalid pixel stride"
+            }
+
             val rowPadding = rowStride - pixelStride * width
             val paddedWidth = width + rowPadding / pixelStride
 
@@ -117,6 +126,7 @@ class OcrTextRecognizer(
                 sourceBitmap.recycle()
             }
 
+            // Image ab ScreenCaptureSession ke callback se close hogi.
             closeImageSafely()
 
             val currentBitmap = bitmap
@@ -124,6 +134,7 @@ class OcrTextRecognizer(
 
             if (overlayBounds != null) {
                 val safeBounds = Rect(overlayBounds)
+
                 safeBounds.intersect(
                     0,
                     0,
@@ -133,15 +144,20 @@ class OcrTextRecognizer(
 
                 if (!safeBounds.isEmpty) {
                     val canvas = Canvas(currentBitmap)
+
                     val paint = Paint().apply {
                         color = android.graphics.Color.BLACK
                         style = Paint.Style.FILL
                     }
+
                     canvas.drawRect(safeBounds, paint)
                 }
             }
 
-            val inputImage = InputImage.fromBitmap(currentBitmap, 0)
+            val inputImage = InputImage.fromBitmap(
+                currentBitmap,
+                0
+            )
 
             recognizer.process(inputImage)
                 .addOnSuccessListener { result: Text ->
@@ -165,8 +181,10 @@ class OcrTextRecognizer(
 
         } catch (e: Exception) {
             Log.e(TAG, "Image processing failed", e)
+
             closeImageSafely()
             recycleBitmapSafely()
+
             notifyErrorSafely("Image processing failed")
             finishSafely()
         }
