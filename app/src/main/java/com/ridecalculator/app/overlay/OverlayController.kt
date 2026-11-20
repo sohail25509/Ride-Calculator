@@ -5,7 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.Rect
+
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
@@ -357,18 +357,21 @@ class OverlayController(private val context: Context) {
         val density = appContext.resources.displayMetrics.density
         return (dp * density).roundToInt()
     }
-fun getOverlayScreenBounds(): Rect? {
-    if (!::overlayView.isInitialized || !overlayView.isAttachedToWindow) {
-        return null
+    fun getOverlayScreenBounds(): Rect? {
+        val view = overlayView ?: return null
+
+        if (!view.isAttachedToWindow) {
+            return null
+        }
+
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+
+        return Rect(
+            location[0],
+            location[1],
+            location[0] + view.width,
+            location[1] + view.height
+        )
     }
-
-    val location = IntArray(2)
-    overlayView.getLocationOnScreen(location)
-
-    return Rect(
-        location[0],
-        location[1],
-        location[0] + overlayView.width,
-        location[1] + overlayView.height
-    )
 }
