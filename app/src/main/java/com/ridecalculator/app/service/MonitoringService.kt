@@ -78,6 +78,7 @@ class MonitoringService : Service() {
         resultData: Intent
     ) {
         if (captureSession != null) return
+        isStopping = false
 
         createNotificationChannel()
 
@@ -119,12 +120,10 @@ class MonitoringService : Service() {
                     frameWidth,
                     frameHeight ->
 
-                val bounds = overlayController?.getOverlayScreenBounds()
-
                 ocrRecognizer?.processImage(
                     image = image,
                     closeImageOnce = closeImageOnce,
-                    overlayBounds = bounds,
+                    rotationDegrees = rotationDegrees,
                     onFinished = {
                         captureSession?.markFrameProcessingComplete()
                     }
