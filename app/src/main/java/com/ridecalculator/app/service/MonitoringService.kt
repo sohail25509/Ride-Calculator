@@ -106,6 +106,7 @@ class MonitoringService : Service() {
             },
             onError = { error ->
                 Log.e(TAG, "OCR error: $error")
+                overlayController?.updateOcrDebug("OCR error: $error")
             }
         )
 
@@ -148,6 +149,8 @@ class MonitoringService : Service() {
     }
 
     private fun processRecognizedText(text: String) {
+        Log.d(TAG, "OCR recognized ${text.length} characters")
+        overlayController?.updateOcrDebug(text)
         val offer = parser.parse(text)
         val result = decisionEngine.evaluate(offer)
 
