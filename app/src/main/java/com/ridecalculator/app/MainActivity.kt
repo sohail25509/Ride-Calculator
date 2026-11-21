@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
-                        Text("Start monitoring to check ride offers.")
+                        Text("When prompted, select the inDrive app only (not the entire screen).")
                     }
                 }
             }
@@ -95,10 +95,7 @@ class MainActivity : ComponentActivity() {
             action = MonitoringService.ACTION_STOP
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        // Stop is not a foreground-service start; use the normal service start path.
+        startService(serviceIntent)
     }
 }
