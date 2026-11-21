@@ -63,6 +63,7 @@ class OverlayController(private val context: Context) {
     private var tvVerdict: TextView? = null
     private var tvRatePerKm: TextView? = null
     private var tvDetails: TextView? = null
+    private var tvOcrDebug: TextView? = null
 
     /**
      * Returns true if the user has granted "Display over other apps" permission.
@@ -100,12 +101,14 @@ class OverlayController(private val context: Context) {
             val verdict = view.findViewById<TextView>(R.id.tvVerdict)
             val ratePerKm = view.findViewById<TextView>(R.id.tvRatePerKm)
             val details = view.findViewById<TextView>(R.id.tvDetails)
+            val ocrDebug = view.findViewById<TextView>(R.id.tvOcrDebug)
 
             cardRoot = root
             tvDragHint = dragHint
             tvVerdict = verdict
             tvRatePerKm = ratePerKm
             tvDetails = details
+            tvOcrDebug = ocrDebug
 
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -197,6 +200,31 @@ class OverlayController(private val context: Context) {
                 enforceMaxWidthAndClampPosition(view, params, params.x, params.y)
                 safeUpdateLayout(view, params)
             }
+        }
+    }
+
+    /**
+     * Shows only fare/distance-like OCR tokens; personal text is not displayed.
+     */
+    fun updateOcrDebug(recognizedText: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { updateOcrDebug(recognizedText) }
+            return
+        }
+
+        val tokenRegex = Regex(
+            """(?i)(?:accept\\s+for\\s+)?(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?|[0-9][0-9,]*(?:\\.[0-9]+)?\\s*(?:rs\\.?|pkr)\\b|[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+        )
+        val tokens = tokenRegex.findAll(recognizedText)
+            .map { it.value.trim().replace(Regex("""\\s+"""), " ") }
+            .distinct()
+            .take(5)
+            .toList()
+
+        tvOcrDebug?.text = if (tokens.isEmpty()) {
+            "OCR: no fare/distance text (" + recognizedText.length + " chars)"
+        } else {
+            "OCR: " + tokens.joinToString(" | ")
         }
     }
 
@@ -350,6 +378,7 @@ class OverlayController(private val context: Context) {
         tvVerdict = null
         tvRatePerKm = null
         tvDetails = null
+        tvOcrDebug = null
         isShowing = false
     }
 
