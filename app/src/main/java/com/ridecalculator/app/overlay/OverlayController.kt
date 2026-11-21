@@ -229,7 +229,21 @@ class OverlayController(private val context: Context) {
         val tokens = listOfNotNull(acceptedFare ?: fareFallback) + distances
 
         tvOcrDebug?.text = if (tokens.isEmpty()) {
-            "OCR: no fare/distance text (" + recognizedText.length + " chars)"
+            val safeLines = recognizedText.lines()
+                .map { line ->
+                    line.replace(Regex("""[A-Za-z]+"""), "X")
+                        .replace(Regex("""\\d{5,}"""), "[number]")
+                        .trim()
+                }
+                .filter { it.isNotBlank() }
+                .take(4)
+                .joinToString(" / ")
+                .take(120)
+            if (safeLines.isBlank()) {
+                "OCR: no fare/distance text (" + recognizedText.length + " chars)"
+            } else {
+                "OCR masked: " + safeLines
+            }
         } else {
             "OCR: " + tokens.joinToString(" | ")
         }
