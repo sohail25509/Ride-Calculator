@@ -52,4 +52,15 @@
         android:gravity="center"
         android:paddingTop="4dp" />
 
+    <TextView
+        android:id="@+id/tvOcrDebug"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="OCR: waiting for screen text..."
+        android:textColor="#FDE68A"
+        android:textSize="10sp"
+        android:gravity="center"
+        android:paddingTop="5dp"
+        android:maxLines="2" />
+
 </LinearLayout>
