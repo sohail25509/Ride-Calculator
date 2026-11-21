@@ -2,9 +2,6 @@
 package com.ridecalculator.app.ocr
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Rect
 import android.media.Image
 import android.os.Handler
 import android.os.Looper
@@ -35,7 +32,7 @@ class OcrTextRecognizer(
     fun processImage(
         image: Image,
         closeImageOnce: () -> Unit,
-        overlayBounds: Rect? = null,
+        rotationDegrees: Int = 0,
         onFinished: () -> Unit
     ) {
         val finished = AtomicBoolean(false)
@@ -132,31 +129,18 @@ class OcrTextRecognizer(
             val currentBitmap = bitmap
                 ?: throw IllegalStateException("Bitmap creation failed")
 
-            if (overlayBounds != null) {
-                val safeBounds = Rect(overlayBounds)
+            // Capture is restricted to the selected inDrive app. Do not mask using
+            // screen-coordinate overlay bounds: app captures can be resized/cropped,
+            // which could black out the fare or distance bubbles by mistake.
 
-                safeBounds.intersect(
-                    0,
-                    0,
-                    currentBitmap.width,
-                    currentBitmap.height
-                )
-
-                if (!safeBounds.isEmpty) {
-                    val canvas = Canvas(currentBitmap)
-
-                    val paint = Paint().apply {
-                        color = android.graphics.Color.BLACK
-                        style = Paint.Style.FILL
-                    }
-
-                    canvas.drawRect(safeBounds, paint)
-                }
-            }
-
+            val safeRotation = if (rotationDegrees == 0 || rotationDegrees == 90 ||
+                rotationDegrees == 180 || rotationDegrees == 270
+            ) rotationDegrees else 0
+            Log.d(TAG, "Processing frame " + currentBitmap.width + "x" +
+                currentBitmap.height + ", rotation=" + safeRotation)
             val inputImage = InputImage.fromBitmap(
                 currentBitmap,
-                0
+                safeRotation
             )
 
             recognizer.process(inputImage)
