@@ -134,6 +134,9 @@ class MonitoringService : Service() {
             },
             onProjectionStopped = {
                 stopMonitoring()
+            },
+            onCaptureStatus = { status ->
+                overlayController?.updateOcrDebug(status)
             }
         )
 
@@ -143,6 +146,7 @@ class MonitoringService : Service() {
 
         if (!started) {
             Log.e(TAG, "Screen capture could not start")
+            overlayController?.updateOcrDebug("Capture could not start; check app sharing")
             stopMonitoring()
         }
     }
