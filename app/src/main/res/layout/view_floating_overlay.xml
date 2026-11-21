@@ -61,6 +61,6 @@
         android:textSize="10sp"
         android:gravity="center"
         android:paddingTop="5dp"
-        android:maxLines="2" />
+        android:maxLines="4" />
 
 </LinearLayout>
