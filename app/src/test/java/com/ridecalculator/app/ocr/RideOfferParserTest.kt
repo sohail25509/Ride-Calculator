@@ -110,8 +110,8 @@ class RideOfferParserTest {
 
     @Test
     fun parserDoesNotCarryValuesBetweenDifferentRideScreens() {
-        val first = parser.parse("Accept for PKR295\\n622 m\\n7.2 km")
-        val second = parser.parse("Accept for PKR180\\n1400 m\\n5 km")
+        val first = parser.parse("Accept for PKR295\n622 m\n7.2 km")
+        val second = parser.parse("Accept for PKR180\n1400 m\n5 km")
         assertEquals(295.0, first.farePkr!!, 0.001)
         assertEquals(180.0, second.farePkr!!, 0.001)
         assertEquals(7.2, first.destinationTripDistanceKm!!, 0.001)
