@@ -213,17 +213,17 @@ class OverlayController(private val context: Context) {
         }
 
         val acceptedFare = Regex(
-            """(?i)accept\\s+for\\s+(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?"""
-        ).find(recognizedText)?.value?.replace(Regex("""\\s+"""), " ")
+            """(?i)accept\s+for\s+(?:rs\.?|pkr)\s*[0-9][0-9,]*(?:\.[0-9]+)?"""
+        ).find(recognizedText)?.value?.replace(Regex("""\s+"""), " ")
         val distances = Regex(
-            """(?i)[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+            """(?i)[0-9]+(?:[.,][0-9]+)?\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\b"""
         ).findAll(recognizedText)
-            .map { it.value.trim().replace(Regex("""\\s+"""), " ") }
+            .map { it.value.trim().replace(Regex("""\s+"""), " ") }
             .distinct()
             .take(3)
             .toList()
         val fareFallback = if (acceptedFare == null) {
-            Regex("""(?i)(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?""")
+            Regex("""(?i)(?:rs\.?|pkr)\s*[0-9][0-9,]*(?:\.[0-9]+)?""")
                 .find(recognizedText)?.value
         } else null
         val tokens = listOfNotNull(acceptedFare ?: fareFallback) + distances
