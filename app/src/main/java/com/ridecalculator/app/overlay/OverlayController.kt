@@ -212,14 +212,21 @@ class OverlayController(private val context: Context) {
             return
         }
 
-        val tokenRegex = Regex(
-            """(?i)(?:accept\s+for\s+)?(?:rs\.?|pkr)\s*[0-9][0-9,]*(?:\.[0-9]+)?|[0-9][0-9,]*(?:\.[0-9]+)?\s*(?:rs\.?|pkr)\b|[0-9]+(?:[.,][0-9]+)?\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\b"""
-        )
-        val tokens = tokenRegex.findAll(recognizedText)
-            .map { it.value.trim().replace(Regex("""\s+"""), " ") }
+        val acceptedFare = Regex(
+            """(?i)accept\\s+for\\s+(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?"""
+        ).find(recognizedText)?.value?.replace(Regex("""\\s+"""), " ")
+        val distances = Regex(
+            """(?i)[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+        ).findAll(recognizedText)
+            .map { it.value.trim().replace(Regex("""\\s+"""), " ") }
             .distinct()
-            .take(5)
+            .take(3)
             .toList()
+        val fareFallback = if (acceptedFare == null) {
+            Regex("""(?i)(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?""")
+                .find(recognizedText)?.value
+        } else null
+        val tokens = listOfNotNull(acceptedFare ?: fareFallback) + distances
 
         tvOcrDebug?.text = if (tokens.isEmpty()) {
             "OCR: no fare/distance text (" + recognizedText.length + " chars)"
