@@ -85,6 +85,7 @@ class ScreenCaptureSession(
     private var isStopping = false
     private var inFlightOperations = 0
     private var projectionStoppedBySystem = false
+    private var pendingCapturedContentSize: Pair<Int, Int>? = null
 
     fun start(resultCode: Int, data: Intent): Boolean {
         if (resultCode != Activity.RESULT_OK) return false
@@ -103,6 +104,7 @@ class ScreenCaptureSession(
             isStopping = false
             isSessionActive = false
             projectionStoppedBySystem = false
+            pendingCapturedContentSize = null
             inFlightOperations = 1
             lastProcessedTimestampMs = 0L
             isProcessingFrame.set(false)
@@ -128,6 +130,12 @@ class ScreenCaptureSession(
             val createdCallback = object : MediaProjection.Callback() {
                 override fun onStop() {
                     handleSystemProjectionStop(sessionId)
+                }
+
+                override fun onCapturedContentResize(width: Int, height: Int) {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        handleCapturedContentResize(sessionId, width, height)
+                    }
                 }
             }
             callback = createdCallback
@@ -200,21 +208,29 @@ class ScreenCaptureSession(
                 return false
             }
 
-            synchronized(lifecycleLock) {
+            val pendingResize = synchronized(lifecycleLock) {
                 if (activeSessionId != sessionId || isStopping || projectionStoppedBySystem) {
                     shouldReleaseAfterSetup = true
-                    return false
+                    null
+                } else {
+                    mediaProjection = projection
+                    activeProjectionCallback = createdCallback
+                    imageReader = boundReader
+                    virtualDisplay = display
+                    isSessionActive = true
+                    isStarting = false
+                    val pending = pendingCapturedContentSize
+                    pendingCapturedContentSize = null
+                    pending
                 }
-
-                mediaProjection = projection
-                activeProjectionCallback = createdCallback
-                imageReader = boundReader
-                virtualDisplay = display
-                isSessionActive = true
-                isStarting = false
             }
 
+            if (shouldReleaseAfterSetup) return false
+
             setupSucceeded = true
+            if (pendingResize != null) {
+                handleCapturedContentResize(sessionId, pendingResize.first, pendingResize.second)
+            }
             return true
 
         } catch (_: Throwable) {
@@ -516,11 +532,9 @@ class ScreenCaptureSession(
     @Suppress("DEPRECATION")
     private fun resolveCaptureMetrics(): CaptureMetrics {
         val displayMetrics = appContext.resources.displayMetrics
-        val densityDpi = displayMetrics.densityDpi.coerceAtLeast(160)
-
         val (rawWidth, rawHeight) =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val bounds = windowManager.currentWindowMetrics.bounds
+                val bounds = windowManager.maximumWindowMetrics.bounds
                 bounds.width().coerceAtLeast(360) to
                     bounds.height().coerceAtLeast(640)
             } else {
@@ -528,14 +542,107 @@ class ScreenCaptureSession(
                     displayMetrics.heightPixels.coerceAtLeast(640)
             }
 
-        val scale =
-            if (rawHeight > 1280) 1280f / rawHeight.toFloat() else 1f
+        return scaleCaptureMetrics(
+            rawWidth,
+            rawHeight,
+            displayMetrics.densityDpi.coerceAtLeast(160)
+        )
+    }
+
+    private fun scaleCaptureMetrics(
+        rawWidth: Int,
+        rawHeight: Int,
+        baseDensityDpi: Int
+    ): CaptureMetrics {
+        val largestDimension = maxOf(rawWidth, rawHeight).coerceAtLeast(1)
+        val scale = if (largestDimension > 1280) {
+            1280f / largestDimension.toFloat()
+        } else {
+            1f
+        }
 
         return CaptureMetrics(
-            width = (rawWidth * scale).toInt().coerceAtLeast(240),
-            height = (rawHeight * scale).toInt().coerceAtLeast(420),
-            densityDpi = (densityDpi * scale).toInt().coerceAtLeast(120)
+            width = (rawWidth * scale).toInt().coerceAtLeast(1),
+            height = (rawHeight * scale).toInt().coerceAtLeast(1),
+            densityDpi = (baseDensityDpi * scale).toInt().coerceAtLeast(120)
         )
+    }
+
+    /**
+     * Android 14+ can change the captured region from the full display to a single app
+     * window, or resize it after rotation. Resize both the virtual display and its
+     * ImageReader surface so OCR receives the actual app dimensions without letterboxing.
+     */
+    private fun handleCapturedContentResize(
+        sessionId: Long,
+        rawWidth: Int,
+        rawHeight: Int
+    ) {
+        if (rawWidth <= 0 || rawHeight <= 0) return
+
+        val baseDensity = appContext.resources.displayMetrics.densityDpi.coerceAtLeast(160)
+        val metrics = scaleCaptureMetrics(rawWidth, rawHeight, baseDensity)
+
+        var oldReader: ImageReader? = null
+
+        synchronized(lifecycleLock) {
+            if (activeSessionId != sessionId || isStopping || projectionStoppedBySystem) {
+                return
+            }
+
+            val currentDisplay = virtualDisplay
+            if (currentDisplay == null) {
+                pendingCapturedContentSize = rawWidth to rawHeight
+                return
+            }
+
+            if (captureWidth == metrics.width && captureHeight == metrics.height) {
+                return
+            }
+
+            val handler = handlerThread?.looper?.let { Handler(it) } ?: return
+            val newReader = try {
+                ImageReader.newInstance(
+                    metrics.width,
+                    metrics.height,
+                    PixelFormat.RGBA_8888,
+                    2
+                )
+            } catch (error: Exception) {
+                android.util.Log.e("ScreenCaptureSession", "Could not resize capture reader", error)
+                return
+            }
+
+            newReader.setOnImageAvailableListener({ readerRef ->
+                handleImageAvailable(sessionId, readerRef)
+            }, handler)
+
+            try {
+                currentDisplay.resize(metrics.width, metrics.height, metrics.densityDpi)
+                currentDisplay.setSurface(newReader.surface)
+            } catch (error: Exception) {
+                newReader.setOnImageAvailableListener(null, null)
+                newReader.close()
+                android.util.Log.e("ScreenCaptureSession", "Could not resize virtual display", error)
+                return
+            }
+
+            oldReader = imageReader
+            imageReader = newReader
+            captureWidth = metrics.width
+            captureHeight = metrics.height
+        }
+
+        oldReader?.let { previous ->
+            try {
+                previous.setOnImageAvailableListener(null, null)
+            } catch (_: Exception) {
+            }
+            try {
+                previous.close()
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun resolveDisplayRotationDegrees(): Int {
@@ -622,6 +729,7 @@ class ScreenCaptureSession(
         mediaProjection = null
         activeProjectionCallback = null
         handlerThread = null
+        pendingCapturedContentSize = null
     }
 
     private fun safeReleaseComponents(
