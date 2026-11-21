@@ -40,7 +40,8 @@ class ScreenCaptureSession(
         frameWidth: Int,
         frameHeight: Int
     ) -> Unit,
-    private val onProjectionStopped: () -> Unit = {}
+    private val onProjectionStopped: () -> Unit = {},
+    private val onCaptureStatus: (String) -> Unit = {}
 ) {
 
     companion object {
@@ -228,12 +229,15 @@ class ScreenCaptureSession(
             if (shouldReleaseAfterSetup) return false
 
             setupSucceeded = true
+            onCaptureStatus("Capture started; waiting for frame")
             if (pendingResize != null) {
                 handleCapturedContentResize(sessionId, pendingResize.first, pendingResize.second)
             }
             return true
 
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            android.util.Log.e("ScreenCaptureSession", "Capture setup failed", error)
+            onCaptureStatus("Capture setup failed: " + error.javaClass.simpleName)
             shouldReleaseAfterSetup = true
             return false
 
@@ -429,6 +433,7 @@ class ScreenCaptureSession(
         var handedOffToCaller = false
 
         try {
+            onCaptureStatus("Image event received; checking frame")
             val active = synchronized(lifecycleLock) {
                 activeSessionId == sessionId &&
                     isSessionActive &&
@@ -456,10 +461,12 @@ class ScreenCaptureSession(
             rawImage = reader.acquireLatestImage()
 
             if (rawImage == null) {
+                onCaptureStatus("Image event received, but frame was empty")
                 isProcessingFrame.set(false)
                 return
             }
 
+            onCaptureStatus("Frame received " + rawImage!!.width + "x" + rawImage!!.height + "; OCR starting")
             lastProcessedTimestampMs = now
 
             val rotationDegrees = resolveDisplayRotationDegrees()
@@ -476,7 +483,9 @@ class ScreenCaptureSession(
                 height
             )
 
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            android.util.Log.e("ScreenCaptureSession", "Frame capture failed", error)
+            onCaptureStatus("Frame capture error: " + error.javaClass.simpleName)
             closeOnce()
             isProcessingFrame.set(false)
 
