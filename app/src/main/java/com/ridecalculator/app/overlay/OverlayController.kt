@@ -213,10 +213,10 @@ class OverlayController(private val context: Context) {
         }
 
         val tokenRegex = Regex(
-            """(?i)(?:accept\\s+for\\s+)?(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?|[0-9][0-9,]*(?:\\.[0-9]+)?\\s*(?:rs\\.?|pkr)\\b|[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+            """(?i)(?:accept\s+for\s+)?(?:rs\.?|pkr)\s*[0-9][0-9,]*(?:\.[0-9]+)?|[0-9][0-9,]*(?:\.[0-9]+)?\s*(?:rs\.?|pkr)\b|[0-9]+(?:[.,][0-9]+)?\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\b"""
         )
         val tokens = tokenRegex.findAll(recognizedText)
-            .map { it.value.trim().replace(Regex("""\\s+"""), " ") }
+            .map { it.value.trim().replace(Regex("""\s+"""), " ") }
             .distinct()
             .take(5)
             .toList()
