@@ -28,6 +28,14 @@ jobs:
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest --stacktrace
 
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ride-Calculator-Test-Reports
+          path: app/build/test-results/testDebugUnitTest/
+          if-no-files-found: warn
+
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
