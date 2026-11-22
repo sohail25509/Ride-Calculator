@@ -33,38 +33,38 @@ class RideOfferParser {
         var pickup = extractDistanceForLabel(lines, PICKUP_LABEL)
         var destination = extractDistanceForLabel(lines, DESTINATION_LABEL)
 
-        if (pickup.value == null && destination.value == null &&
-            !pickup.ambiguous && !destination.ambiguous
-        ) {
-            val measurements = extractDistanceMeasurements(lines)
-            if (measurements.size == 2) {
-                val pickupMeasurement = measurements.singleOrNull { it.unitIsMeters }
-                val destinationMeasurement = measurements.singleOrNull { !it.unitIsMeters }
-                if (pickupMeasurement != null && destinationMeasurement != null) {
-                    pickup = ExtractionResult(pickupMeasurement.kilometers)
-                    destination = ExtractionResult(destinationMeasurement.kilometers)
-                }
-            }
+        // Always inspect all distance tokens, even when one labelled distance
+        // was already found. OCR can recognize the pickup label but miss the
+        // destination label; the meter/km units still distinguish the two.
+        val measurements = extractDistanceMeasurements(lines)
+        if (!pickup.ambiguous && !destination.ambiguous) {
+            val meterValues = measurements.filter { it.unitIsMeters }
+                .map { it.kilometers }.distinct()
+            val kilometerValues = measurements.filter { !it.unitIsMeters }
+                .map { it.kilometers }.distinct()
 
-            // On the inDrive offer card, the pickup distance can appear twice:
-            // once in the map bubble and once above the fare. The destination
-            // distance appears once in its own map bubble. Only use this pattern
-            // when an accepted fare is clearly present and exactly two distinct
-            // kilometer values exist; otherwise leave the distances unknown.
-            if (pickup.value == null && destination.value == null &&
-                !pickup.ambiguous && !destination.ambiguous &&
-                fare.value != null && !fare.ambiguous
-            ) {
-                val kilometerValues = measurements
-                    .filter { !it.unitIsMeters }
-                    .groupingBy { it.kilometers }
-                    .eachCount()
-                val repeated = kilometerValues.filterValues { it >= 2 }.keys
-                val single = kilometerValues.filterValues { it == 1 }.keys
-                if (kilometerValues.size == 2 && repeated.size == 1 && single.size == 1) {
-                    pickup = ExtractionResult(repeated.first())
-                    destination = ExtractionResult(single.first())
-                }
+            if (meterValues.size == 1 && kilometerValues.size == 1) {
+                if (pickup.value == null) pickup = ExtractionResult(meterValues.first())
+                if (destination.value == null) destination = ExtractionResult(kilometerValues.first())
+            }
+        }
+
+        // On the inDrive offer card, pickup can appear twice while destination
+        // appears once. Use this fallback only when neither distance is labelled
+        // or inferred from meter/km units, and an accepted fare is unambiguous.
+        if (pickup.value == null && destination.value == null &&
+            !pickup.ambiguous && !destination.ambiguous &&
+            fare.value != null && !fare.ambiguous
+        ) {
+            val kilometerCounts = measurements
+                .filter { !it.unitIsMeters }
+                .groupingBy { it.kilometers }
+                .eachCount()
+            val repeated = kilometerCounts.filterValues { it >= 2 }.keys
+            val single = kilometerCounts.filterValues { it == 1 }.keys
+            if (kilometerCounts.size == 2 && repeated.size == 1 && single.size == 1) {
+                pickup = ExtractionResult(repeated.first())
+                destination = ExtractionResult(single.first())
             }
         }
 
