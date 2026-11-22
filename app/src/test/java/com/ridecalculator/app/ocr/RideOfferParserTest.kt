@@ -118,4 +118,39 @@ class RideOfferParserTest {
         assertEquals(5.0, second.destinationTripDistanceKm!!, 0.001)
     }
 
+    @Test
+    fun parsesInDriveOfferWhenPickupDistanceIsRepeatedOnCardAndMap() {
+        val result = parser.parse(
+            """
+                13 min
+                4.3 km
+                6 min
+                1.8 km
+                ~4.3 km
+                PKR80
+                Accept for PKR80
+                PKR88
+                PKR95
+            """.trimIndent()
+        )
+        assertEquals(80.0, result.farePkr!!, 0.001)
+        assertEquals(4.3, result.pickupDistanceKm!!, 0.001)
+        assertEquals(1.8, result.destinationTripDistanceKm!!, 0.001)
+        assertFalse(result.isAmbiguous)
+    }
+
+    @Test
+    fun doesNotGuessWhenTwoUnlabelledKilometerDistancesHaveNoRepeatedPickup() {
+        val result = parser.parse(
+            """
+                Accept for PKR80
+                4.3 km
+                1.8 km
+            """.trimIndent()
+        )
+        assertEquals(80.0, result.farePkr!!, 0.001)
+        assertNull(result.pickupDistanceKm)
+        assertNull(result.destinationTripDistanceKm)
+    }
+
 }
