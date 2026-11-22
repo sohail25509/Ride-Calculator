@@ -35,6 +35,23 @@ class RideOfferParserTest {
     }
 
     @Test
+    fun fillsMissingDestinationWhenPickupLabelWasRecognizedButDestinationLabelWasNot() {
+        val result = parser.parse(
+            """
+                Pickup
+                622 m
+                24 min
+                7,2 km
+                Accept for PKR295
+            """.trimIndent()
+        )
+        assertEquals(295.0, result.farePkr!!, 0.001)
+        assertEquals(0.622, result.pickupDistanceKm!!, 0.001)
+        assertEquals(7.2, result.destinationTripDistanceKm!!, 0.001)
+        assertFalse(result.isAmbiguous)
+    }
+
+    @Test
     fun doesNotGuessDestinationWhenOnlyOneUnlabelledDistanceExists() {
         val result = parser.parse(
             """
