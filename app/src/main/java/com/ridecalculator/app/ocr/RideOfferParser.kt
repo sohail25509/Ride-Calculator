@@ -45,6 +45,27 @@ class RideOfferParser {
                     destination = ExtractionResult(destinationMeasurement.kilometers)
                 }
             }
+
+            // On the inDrive offer card, the pickup distance can appear twice:
+            // once in the map bubble and once above the fare. The destination
+            // distance appears once in its own map bubble. Only use this pattern
+            // when an accepted fare is clearly present and exactly two distinct
+            // kilometer values exist; otherwise leave the distances unknown.
+            if (pickup.value == null && destination.value == null &&
+                !pickup.ambiguous && !destination.ambiguous &&
+                fare.value != null && !fare.ambiguous
+            ) {
+                val kilometerValues = measurements
+                    .filter { !it.unitIsMeters }
+                    .groupingBy { it.kilometers }
+                    .eachCount()
+                val repeated = kilometerValues.filterValues { it >= 2 }.keys
+                val single = kilometerValues.filterValues { it == 1 }.keys
+                if (kilometerValues.size == 2 && repeated.size == 1 && single.size == 1) {
+                    pickup = ExtractionResult(repeated.first())
+                    destination = ExtractionResult(single.first())
+                }
+            }
         }
 
         return RideOfferData(
