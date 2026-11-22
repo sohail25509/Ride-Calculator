@@ -28,6 +28,53 @@ class OcrTextRecognizer(
     )
 
     private val isClosed = AtomicBoolean(false)
+    private val lifecycleLock = Any()
+    private var activeTasks = 0
+    private var recognizerCloseScheduled = false
+
+    private fun beginRecognitionTask(): Boolean = synchronized(lifecycleLock) {
+        if (isClosed.get()) {
+            false
+        } else {
+            activeTasks++
+            true
+        }
+    }
+
+    private fun endRecognitionTask() {
+        val shouldClose = synchronized(lifecycleLock) {
+            if (activeTasks > 0) activeTasks--
+            if (isClosed.get() && activeTasks == 0 && !recognizerCloseScheduled) {
+                recognizerCloseScheduled = true
+                true
+            } else {
+                false
+            }
+        }
+        if (shouldClose) closeRecognizerOnMainThread()
+    }
+
+    private fun closeRecognizerIfIdle() {
+        val shouldClose = synchronized(lifecycleLock) {
+            if (activeTasks == 0 && !recognizerCloseScheduled) {
+                recognizerCloseScheduled = true
+                true
+            } else {
+                false
+            }
+        }
+        if (shouldClose) closeRecognizerOnMainThread()
+    }
+
+    private fun closeRecognizerOnMainThread() {
+        mainHandler.post {
+            try {
+                recognizer.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Recognizer close failed", e)
+            }
+        }
+    }
 
     fun processImage(
         image: Image,
@@ -38,8 +85,18 @@ class OcrTextRecognizer(
         val finished = AtomicBoolean(false)
         val imageClosed = AtomicBoolean(false)
         val bitmapRecycled = AtomicBoolean(false)
+        val recognitionTaskReleased = AtomicBoolean(false)
+        var taskRegistered = false
 
         var bitmap: Bitmap? = null
+
+        fun releaseRecognitionTaskSafely() {
+            if (taskRegistered &&
+                recognitionTaskReleased.compareAndSet(false, true)
+            ) {
+                endRecognitionTask()
+            }
+        }
 
         fun finishSafely() {
             if (finished.compareAndSet(false, true)) {
@@ -143,6 +200,13 @@ class OcrTextRecognizer(
                 safeRotation
             )
 
+            if (!beginRecognitionTask()) {
+                recycleBitmapSafely()
+                finishSafely()
+                return
+            }
+            taskRegistered = true
+
             recognizer.process(inputImage)
                 .addOnSuccessListener { result: Text ->
                     try {
@@ -160,6 +224,7 @@ class OcrTextRecognizer(
                 }
                 .addOnCompleteListener {
                     recycleBitmapSafely()
+                    releaseRecognitionTaskSafely()
                     finishSafely()
                 }
 
@@ -168,6 +233,7 @@ class OcrTextRecognizer(
 
             closeImageSafely()
             recycleBitmapSafely()
+            releaseRecognitionTaskSafely()
 
             notifyErrorSafely("Image processing failed")
             finishSafely()
@@ -190,13 +256,8 @@ class OcrTextRecognizer(
 
     fun close() {
         if (isClosed.compareAndSet(false, true)) {
-            mainHandler.post {
-                try {
-                    recognizer.close()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Recognizer close failed", e)
-                }
-            }
+            // Wait for in-flight ML Kit tasks before closing the shared recognizer.
+            closeRecognizerIfIdle()
         }
     }
 }
