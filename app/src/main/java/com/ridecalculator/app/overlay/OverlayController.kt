@@ -232,7 +232,7 @@ class OverlayController(private val context: Context) {
             val safeLines = recognizedText.lines()
                 .map { line ->
                     line.replace(Regex("""[A-Za-z]+"""), "X")
-                        .replace(Regex("""\d{5,}"""), "[number]")
+                        .replace(Regex("""\d+"""), "[number]")
                         .trim()
                 }
                 .filter { it.isNotBlank() }
