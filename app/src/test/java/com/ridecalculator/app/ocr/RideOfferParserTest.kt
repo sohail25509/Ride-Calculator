@@ -192,4 +192,60 @@ class RideOfferParserTest {
         assertEquals(40.972222, evaluation.ratePerKm!!, 0.001)
     }
 
+
+    @Test
+    fun marksConflictingAcceptedFareAmountsAsAmbiguous() {
+        val result = parser.parse(
+            """
+                Accept for PKR295
+                Accept for PKR325
+                622 m
+                7.2 km
+            """.trimIndent()
+        )
+        assertNull(result.farePkr)
+        assertEquals(true, result.isAmbiguous)
+    }
+
+    @Test
+    fun doesNotGuessWhenPickupLabelContainsMultipleDifferentDistances() {
+        val result = parser.parse(
+            """
+                Pickup 622 m 1.2 km
+                Accept for PKR295
+                7.2 km
+            """.trimIndent()
+        )
+        assertEquals(295.0, result.farePkr!!, 0.001)
+        assertNull(result.pickupDistanceKm)
+        assertEquals(true, result.isAmbiguous)
+    }
+
+    @Test
+    fun decisionEngineRejectsRateJustBelowThirty() {
+        val result = RideDecisionEngine().evaluate(
+            RideOfferData(299.0, 0.5, 10.0)
+        )
+        assertEquals(RideVerdict.MAT_UTHAO, result.verdict)
+        assertEquals(29.9, result.ratePerKm!!, 0.001)
+    }
+
+    @Test
+    fun decisionEngineReturnsDataNotFoundWhenPickupIsMissing() {
+        val result = RideDecisionEngine().evaluate(
+            RideOfferData(295.0, null, 7.2)
+        )
+        assertEquals(RideVerdict.DATA_NOT_FOUND, result.verdict)
+        assertNull(result.ratePerKm)
+    }
+
+    @Test
+    fun decisionEngineReturnsDataNotFoundForNonFiniteValues() {
+        val engine = RideDecisionEngine()
+        val nanFare = engine.evaluate(RideOfferData(Double.NaN, 0.5, 7.2))
+        val infiniteTrip = engine.evaluate(RideOfferData(295.0, 0.5, Double.POSITIVE_INFINITY))
+        assertEquals(RideVerdict.DATA_NOT_FOUND, nanFare.verdict)
+        assertEquals(RideVerdict.DATA_NOT_FOUND, infiniteTrip.verdict)
+    }
+
 }
