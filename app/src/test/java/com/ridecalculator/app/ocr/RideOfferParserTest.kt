@@ -170,4 +170,26 @@ class RideOfferParserTest {
         assertNull(result.destinationTripDistanceKm)
     }
 
+
+    @Test
+    fun exactRs295622m72kmScreenshotProducesUthaaLo() {
+        val parsed = parser.parse(
+            """
+                Pickup
+                622 m
+                24 min
+                7,2 km
+                Accept for PKR295
+            """.trimIndent()
+        )
+
+        val evaluation = RideDecisionEngine().evaluate(parsed)
+
+        assertEquals(295.0, parsed.farePkr!!, 0.001)
+        assertEquals(0.622, parsed.pickupDistanceKm!!, 0.001)
+        assertEquals(7.2, parsed.destinationTripDistanceKm!!, 0.001)
+        assertEquals(RideVerdict.UTHAA_LO, evaluation.verdict)
+        assertEquals(40.972222, evaluation.ratePerKm!!, 0.001)
+    }
+
 }
