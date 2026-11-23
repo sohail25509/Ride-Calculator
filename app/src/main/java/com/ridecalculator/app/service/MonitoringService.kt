@@ -154,10 +154,10 @@ class MonitoringService : Service() {
     private fun processRecognizedText(text: String) {
         val nonEmptyLineCount = text.lines().count { it.isNotBlank() }
         val fareMarkerPattern = Regex(
-            """(?i)(?:accept\\s+for\\s+)?(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?"""
+            """(?i)(?:accept\s+for\s+)?(?:rs\.?|pkr)\s*[0-9][0-9,]*(?:\.[0-9]+)?"""
         )
         val distanceMarkerPattern = Regex(
-            """(?i)[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+            """(?i)[0-9]+(?:[.,][0-9]+)?\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\b"""
         )
         val hasFareMarker = fareMarkerPattern.containsMatchIn(text)
         val distanceMarkerCount = distanceMarkerPattern.findAll(text).count()
