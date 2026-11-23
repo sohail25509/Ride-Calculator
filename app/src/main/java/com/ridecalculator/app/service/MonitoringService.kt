@@ -152,11 +152,27 @@ class MonitoringService : Service() {
     }
 
     private fun processRecognizedText(text: String) {
-        Log.d(TAG, "OCR recognized ${text.length} characters")
-        overlayController?.updateOcrDebug(text)
+        val nonEmptyLineCount = text.lines().count { it.isNotBlank() }
+        val fareMarkerPattern = Regex(
+            """(?i)(?:accept\\s+for\\s+)?(?:rs\\.?|pkr)\\s*[0-9][0-9,]*(?:\\.[0-9]+)?"""
+        )
+        val distanceMarkerPattern = Regex(
+            """(?i)[0-9]+(?:[.,][0-9]+)?\\s*(?:km|kms|kilometers?|kilometres?|m|meters?|metres?)\\b"""
+        )
+        val hasFareMarker = fareMarkerPattern.containsMatchIn(text)
+        val distanceMarkerCount = distanceMarkerPattern.findAll(text).count()
+
+        // Only aggregate counts and marker presence are sent to the overlay.
+        // Recognized screen text is never written to logs or diagnostics.
+        overlayController?.updateOcrDiagnostics(
+            nonEmptyLineCount = nonEmptyLineCount,
+            characterCount = text.length,
+            hasFareMarker = hasFareMarker,
+            distanceMarkerCount = distanceMarkerCount
+        )
+
         val offer = parser.parse(text)
         val result = decisionEngine.evaluate(offer)
-
         overlayController?.updateResult(result)
     }
 
