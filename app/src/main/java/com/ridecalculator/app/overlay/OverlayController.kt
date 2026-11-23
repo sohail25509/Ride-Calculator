@@ -250,6 +250,17 @@ class OverlayController(private val context: Context) {
     }
 
     /**
+     * Displays a short technical OCR/capture status without exposing recognized screen text.
+     */
+    fun updateOcrStatus(status: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { updateOcrStatus(status) }
+            return
+        }
+        tvOcrDebug?.text = status.take(100)
+    }
+
+    /**
      * Displays aggregate OCR diagnostics only; never receives or displays recognized text.
      */
     fun updateOcrDiagnostics(
