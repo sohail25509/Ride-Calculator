@@ -250,6 +250,31 @@ class OverlayController(private val context: Context) {
     }
 
     /**
+     * Displays aggregate OCR diagnostics only; never receives or displays recognized text.
+     */
+    fun updateOcrDiagnostics(
+        nonEmptyLineCount: Int,
+        characterCount: Int,
+        hasFareMarker: Boolean,
+        distanceMarkerCount: Int
+    ) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post {
+                updateOcrDiagnostics(
+                    nonEmptyLineCount,
+                    characterCount,
+                    hasFareMarker,
+                    distanceMarkerCount
+                )
+            }
+            return
+        }
+
+        val fareStatus = if (hasFareMarker) "yes" else "no"
+        tvOcrDebug?.text = "OCR result: $nonEmptyLineCount lines, $characterCount chars\n" +
+            "Fare marker: $fareStatus; distance markers: $distanceMarkerCount"
+    }
+    /**
      * Safely detaches and cleans up the floating overlay window.
      */
     fun hide() {
