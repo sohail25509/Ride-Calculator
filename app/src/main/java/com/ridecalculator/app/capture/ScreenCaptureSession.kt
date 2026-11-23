@@ -564,8 +564,8 @@ class ScreenCaptureSession(
         baseDensityDpi: Int
     ): CaptureMetrics {
         val largestDimension = maxOf(rawWidth, rawHeight).coerceAtLeast(1)
-        val scale = if (largestDimension > 1280) {
-            1280f / largestDimension.toFloat()
+        val scale = if (largestDimension > 1920) {
+            1920f / largestDimension.toFloat()
         } else {
             1f
         }
