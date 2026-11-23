@@ -136,7 +136,14 @@ class MonitoringService : Service() {
                 stopMonitoring()
             },
             onCaptureStatus = { status ->
-                overlayController?.updateOcrDebug(status)
+                // Routine frame updates arrive every 1.5 seconds. Do not overwrite
+                // the persistent OCR diagnostics with these transient status messages.
+                // Surface only capture failures in the overlay.
+                if (status.contains("failed", ignoreCase = true) ||
+                    status.contains("error", ignoreCase = true)
+                ) {
+                    overlayController?.updateOcrDebug(status)
+                }
             }
         )
 
