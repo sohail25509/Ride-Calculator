@@ -107,7 +107,7 @@ class MonitoringService : Service() {
             },
             onError = { error ->
                 Log.e(TAG, "OCR error: $error")
-                overlayController?.updateOcrDebug("OCR error: $error")
+                overlayController?.updateOcrStatus(error)
             }
         )
 
@@ -142,7 +142,7 @@ class MonitoringService : Service() {
                 if (status.contains("failed", ignoreCase = true) ||
                     status.contains("error", ignoreCase = true)
                 ) {
-                    overlayController?.updateOcrDebug(status)
+                    overlayController?.updateOcrStatus(status)
                 }
             }
         )
@@ -153,7 +153,7 @@ class MonitoringService : Service() {
 
         if (!started) {
             Log.e(TAG, "Screen capture could not start")
-            overlayController?.updateOcrDebug("Capture could not start; check app sharing")
+            overlayController?.updateOcrStatus("Capture could not start; check app sharing")
             stopMonitoring()
         }
     }
