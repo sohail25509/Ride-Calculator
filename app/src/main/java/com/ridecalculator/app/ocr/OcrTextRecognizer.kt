@@ -6,6 +6,7 @@ import android.media.Image
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -220,7 +221,12 @@ class OcrTextRecognizer(
                 }
                 .addOnFailureListener { error ->
                     Log.e(TAG, "OCR recognition failed", error)
-                    notifyErrorSafely("OCR recognition failed")
+                    val diagnostic = if (error is MlKitException) {
+                        "ML Kit error code ${error.errorCode}"
+                    } else {
+                        error.javaClass.simpleName
+                    }
+                    notifyErrorSafely("OCR failed: $diagnostic")
                 }
                 .addOnCompleteListener {
                     recycleBitmapSafely()
@@ -235,7 +241,7 @@ class OcrTextRecognizer(
             recycleBitmapSafely()
             releaseRecognitionTaskSafely()
 
-            notifyErrorSafely("Image processing failed")
+            notifyErrorSafely("Image processing failed: ${e.javaClass.simpleName}")
             finishSafely()
         }
     }
